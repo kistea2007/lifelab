@@ -1729,9 +1729,10 @@ ${profile && profile.background ? profile.background : '用户未提供详细背
     prompt += `暂无历史决策。\n`;
   }
 
+  const currentYear = new Date().getFullYear();
   prompt += `
 ## 当前时局背景
-当前处于2026年，科技发展（AI、自动化）、经济环境、就业市场都在快速变化。
+当前处于${currentYear}年，科技发展（AI、自动化）、经济环境、就业市场都在快速变化。
 
 ## 推演要求
 请基于以上信息，推演用户未来3-5年的人生轨迹，包括：
@@ -2331,14 +2332,30 @@ function renderResult(result) {
   document.getElementById('resultTitle').textContent = result.title || '推演完成';
   document.getElementById('resultSubtitle').textContent = `导师指点迷津（${result.timeSpan || 'AI判断'}）`;
 
-  // 渲染时间线
-  const timelineHtml = result.timeline.map(t => `
+  // 渲染时间线（确保年份正确，使用当前年份而非AI可能返回的旧年份）
+  const currentYear = new Date().getFullYear();
+  const timelineHtml = result.timeline.map((t, index) => {
+    // 尝试从t.time中提取年份，如果提取失败则使用当前年份+index
+    let timeStr = t.time || `第${index + 1}年`;
+    const yearMatch = timeStr.match(/(\d{4})年/);
+    if (yearMatch) {
+      // 如果AI返回了绝对年份（如2023年），替换为相对年份或当前年份+偏移
+      const aiYear = parseInt(yearMatch[1]);
+      const yearDiff = aiYear - currentYear;
+      if (Math.abs(yearDiff) > 10) {
+        // 如果年份偏差太大（如返回了2023年但现在是2026年），使用相对年份
+        const relativeYear = currentYear + index;
+        timeStr = timeStr.replace(/\d{4}年/, relativeYear + '年');
+      }
+    }
+    return `
     <div class="timeline-item">
-      <div class="time">${t.time}</div>
+      <div class="time">${timeStr}</div>
       <div class="event">${t.event}</div>
       <div class="desc">${t.desc}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
   document.getElementById('resultTimeline').innerHTML = timelineHtml;
 
   // 判断是历史决策还是新决策
